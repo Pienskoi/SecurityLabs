@@ -39,6 +39,7 @@ bower_components
 build/Release
 
 # Dependency directories
+*/node_modules/
 node_modules/
 jspm_packages/
 
@@ -103,3 +104,6 @@ dist
 
 # TernJS port file
 .tern-port
+
+# Configuration files
+*/*/config.json
