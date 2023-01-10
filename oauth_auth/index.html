@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Login</title>
+        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    </head>
+
+    <body>
+        <main id="main-holder">
+            <a href="/logout" id="logout">Logout</a>
+
+            <h1 id="login-header">Login</h1>
+
+            <div id="login-error-msg-holder" class="error-msg-holder">
+                <p id="login-error-msg" class="error-msg">Invalid username <span id="error-msg-second-line">and/or password</span></p>
+            </div>
+
+            <form id="login-form" action="/api/login" method="post">
+                <input type="text" name="email" id="email-field" class="form-field" placeholder="Email">
+                <input type="password" name="password" id="password-field" class="form-field" placeholder="Password">
+                <input type="submit" value="Login" id="login-form-submit" class="form-submit">
+            </form>
+
+            <h1 id="signup-header">Signup</h1>
+
+            <div id="signup-error-msg-holder" class="error-msg-holder">
+                <p id="signup-error-msg" class="error-msg"></p>
+            </div>
+
+            <form id="signup-form" action="/api/signup" method="post">
+                <input type="text" name="email" id="email-field" class="form-field" placeholder="Email">
+                <input type="text" name="name" id="name-field" class="form-field" placeholder="Name">
+                <input type="password" name="password" id="password-field" class="form-field" placeholder="Password">
+                <input type="submit" value="Signup" id="signup-form-submit" class="form-submit">
+            </form>
+
+        </main>
+    </body>
+
+
+    <style>
+        html {
+            height: 100%;
+        }
+
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            display: grid;
+            justify-items: center;
+            align-items: center;
+            background-color: #3a3a3a;
+        }
+
+        #logout {
+            opacity: 0;
+        }
+
+        #main-holder {
+            width: 50%;
+            height: 70%;
+            display: grid;
+            justify-items: center;
+            align-items: center;
+            background-color: white;
+            border-radius: 7px;
+            box-shadow: 0px 0px 5px 2px black;
+        }
+
+        .error-msg-holder {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            justify-items: center;
+            align-items: center;
+        }
+
+        .error-msg {
+            width: 23%;
+            text-align: center;
+            margin: 0;
+            padding: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #8a0000;
+            border: 1px solid #8a0000;
+            background-color: #e58f8f;
+            opacity: 0;
+        }
+
+        #error-msg-second-line {
+            display: block;
+        }
+
+        form {
+            align-self: flex-start;
+            display: grid;
+            justify-items: center;
+            align-items: center;
+        }
+
+        .form-field::placeholder {
+            color: #3a3a3a;
+        }
+
+        .form-field {
+            border: none;
+            border-bottom: 1px solid #3a3a3a;
+            margin-bottom: 10px;
+            border-radius: 3px;
+            outline: none;
+            padding: 0px 0px 5px 5px;
+        }
+
+        .form-submit {
+            width: 100%;
+            padding: 7px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            background-color: #3a3a3a;
+            cursor: pointer;
+            outline: none;
+        }
+    </style>
+
+    <script>
+        const instance = axios.create();
+        const refreshToken = sessionStorage.getItem('refresh_token');
+
+        instance.interceptors.request.use(
+            (config) => {
+                const token = sessionStorage.getItem('access_token');
+                if (token) {
+                    config.headers["Authorization"] = token;
+                }
+                return config;
+            }, 
+            (err) => Promise.reject(err)
+        );
+
+        instance.interceptors.response.use(
+            (res) => res,
+            async (err) => {
+                const originalConfig = err.config;
+                if (err.response.status === 401 && !originalConfig.isRetried) {
+                    originalConfig.isRetried = true;
+                    axios({
+                        method: 'POST',
+                        url: '/api/refresh_token',
+                        data: {
+                            refreshToken: refreshToken
+                        }
+                    }).then((response) => {
+                        const { access_token } = response.data;
+                        sessionStorage.setItem("access_token", access_token);
+                        instance.defaults.headers.common["Authorization"] = access_token;
+                        location.reload();
+                        return instance(originalConfig);
+                    }).catch((err) => {
+                        return Promise.reject(err);
+                    });
+                }
+                return Promise.reject(err);
+            }
+        );
+
+        if (sessionStorage.getItem('access_token')) {
+            instance.get('/').then((response) => {
+                const { username } = response.data;
+
+                if (username) {
+                    const mainHolder = document.getElementById("main-holder");
+                    const loginHeader = document.getElementById("login-header");
+                    const signupHeader = document.getElementById("signup-header");
+
+                    loginForm.remove();
+                    loginErrorMsg.remove();
+                    loginHeader.remove();
+                    signupForm.remove();
+                    signupErrorMsg.remove();
+                    signupHeader.remove();
+
+                    mainHolder.append(`Hello ${username}`);
+                    logoutLink.style.opacity = 1;
+                }
+            });
+        }
+
+        const loginForm = document.getElementById("login-form");
+        const loginButton = document.getElementById("login-form-submit");
+        const loginErrorMsg = document.getElementById("login-error-msg");
+        const logoutLink =  document.getElementById("logout");
+
+        logoutLink.addEventListener("click", (e) => {
+            e.preventDefault();
+            sessionStorage.removeItem('access_token');
+            sessionStorage.removeItem('refresh_token');
+            location.reload();
+        });
+
+        loginButton.addEventListener("click", (e) => {
+            e.preventDefault();
+            const email = loginForm.email.value;
+            const password = loginForm.password.value;
+
+            axios({
+                method: 'POST',
+                url: '/api/login',
+                data: {
+                    email,
+                    password
+                }
+            }).then((response) => {
+                const { access_token, refresh_token } = response.data;
+                sessionStorage.setItem('access_token', access_token);
+                sessionStorage.setItem('refresh_token', refresh_token);
+                location.reload();
+            }).catch((err) => {
+                loginErrorMsg.style.opacity = 1;
+            });
+        })
+
+        const signupForm = document.getElementById("signup-form");
+        const signupButton = document.getElementById("signup-form-submit");
+        const signupErrorMsg = document.getElementById("signup-error-msg");
+
+        signupButton.addEventListener("click", (e) => {
+            e.preventDefault();
+            const email = signupForm.email.value;
+            const name = signupForm.name.value;
+            const password = signupForm.password.value;
+
+            instance.post('/api/signup', {
+                data: {
+                    email,
+                    name,
+                    password
+                }
+            }).then((response) => {
+                location.reload();
+            }).catch((err) => {
+                signupErrorMsg.innerText = err.response.data;
+                signupErrorMsg.style.opacity = 1;
+            });
+        })
+    </script>
+</html>
