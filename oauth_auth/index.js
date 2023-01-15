@@ -85,7 +85,7 @@ app.post('/api/signup', async (req, res) => {
 });
 
 app.post('/api/refresh_token', async (req, res) => {
-    console.log(req.body);
+    const { refreshToken } = req.body;
 
     try {
         const token = await refreshAccessToken(domain, refreshToken, client_id, client_secret)
